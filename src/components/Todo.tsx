@@ -23,7 +23,7 @@ const Todo = () => {
       },
     },
     update: (cache, { data }) => {
-      console.log("Cache updated with:", cache);
+      console.log("Data from mutation:", data);
       if (!data) return;
 
       /**
