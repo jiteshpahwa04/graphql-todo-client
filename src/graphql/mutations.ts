@@ -1,8 +1,8 @@
 import { gql } from "@apollo/client";
 
 export const ADD_TODO = gql`
-  mutation AddingTodo($text: String!, $tags: [String!]!) {
-    createTodo(title: $text, tags: $tags) {
+  mutation AddingTodo($title: String!, $tags: [String!]!) {
+    createTodo(title: $title, tags: $tags) {
       id
       title
       completed

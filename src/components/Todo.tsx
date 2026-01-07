@@ -1,15 +1,21 @@
-import { useMutation } from "@apollo/client/react";
+import { useMutation, useQuery } from "@apollo/client/react";
 import { ADD_TODO } from "../graphql/mutations";
 import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
+import { GET_TODOS } from "../graphql/query";
+import type { GetTodosData, CreateTodoData } from "../types/Todo";
+import { gql } from "@apollo/client";
 
 const Todo = () => {
   const [title, setTitle] = useState<string>("");
   const [tags, setTags] = useState<string[]>([]);
 
-  const [addTodo] = useMutation(ADD_TODO, {
+  const [addTodo] = useMutation<
+    CreateTodoData,
+    { title: string; tags: string[] }
+  >(ADD_TODO, {
     optimisticResponse: {
-      addTodo: {
+      createTodo: {
         id: uuidv4(),
         title,
         completed: false,
@@ -18,16 +24,43 @@ const Todo = () => {
     },
     update: (cache, { data }) => {
       console.log("Cache updated with:", cache);
-      console.log(data);
+      if (!data) return;
+
+      /**
+       * 🔹 Apollo knows which refs are optimistic
+         🔹 On error → ref disappears automatically
+         🔹 No duplicates, no leaks
+       */
+      cache.modify({
+        fields: {
+          getTodos(existingRefs = []) {
+            const newRef = cache.writeFragment({
+              data: data.createTodo,
+              fragment: gql`
+                fragment NewTodo on Todo {
+                  id
+                  title
+                  completed
+                  tags
+                }
+              `,
+            });
+
+            return [...existingRefs, newRef];
+          },
+        },
+      });
     },
   });
+
+  const { data: todosData } = useQuery<GetTodosData>(GET_TODOS);
 
   function handleAddTodo(event: React.FormEvent) {
     event.preventDefault();
     console.log("Adding todo:", title, tags);
     addTodo({
       variables: {
-        text: title,
+        title: title,
         tags,
       },
     });
@@ -59,6 +92,15 @@ const Todo = () => {
 
         <button type="submit">Add Todo</button>
       </form>
+
+      <ul>
+        {todosData?.getTodos.map((todo) => (
+          <li key={todo.id}>
+            <strong>{todo.title}</strong> - Tags: {todo.tags.join(", ")} -{" "}
+            {todo.completed ? "Completed" : "Pending"}
+          </li>
+        ))}
+      </ul>
     </>
   );
 };
